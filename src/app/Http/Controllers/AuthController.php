@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Providers\View;
+
 class AuthController
 {
     public function login()
     {
-        echo 'Login Page';
+        View::render('auth/login');
     }
 }

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Providers\View;
+
 class HomeController
 {
     public function index()
     {
-        echo "Home Page";
+        $name = "Islam";
+
+        View::render('index', compact('name'));
     }
 }
