@@ -6,7 +6,7 @@ class View
 {
     public static function render(string $path, array $params = [])
     {
-        extract($params);
+        $safeParams = $params;
 
         require_once VIEW_PATH . $path . '.php';
     }
