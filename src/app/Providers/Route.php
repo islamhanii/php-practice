@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Http\Exceptions\RouteNotFoundException;
+
 class Route
 {
     protected static array $routes = [];
@@ -35,24 +37,20 @@ class Route
         $action = self::$routes[$method][$uri] ?? null;
 
         if (!$action) {
-            http_response_code(404);
-            echo "404 NOT FOUND.";
-            return;
+            throw new RouteNotFoundException();
         }
 
         if (is_array($action)) {
             [$controller, $method] = $action;
             if (class_exists($controller) && method_exists($controller, $method)) {
                 (new $controller)->$method();
-            } else {
-                http_response_code(500);
-                echo "Controller or method not found.";
+                return;
             }
         } else if (is_callable($action)) {
             call_user_func($action);
-        } else {
-            http_response_code(500);
-            echo "Invalid route handler.";
+            return;
         }
+
+        throw new RouteNotFoundException();
     }
 }

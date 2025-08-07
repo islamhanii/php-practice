@@ -1,0 +1,1 @@
+<?= $safeParams->message ?>

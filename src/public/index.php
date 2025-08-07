@@ -2,10 +2,15 @@
 
 require '../vendor/autoload.php';
 
-use App\Providers\Route;
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
+
+use App\Providers\App;
+use App\Providers\Config;
 
 define('VIEW_PATH', __DIR__ . '/../views/');
 
 require_once '../routes/web.php';
 
-Route::dispatch();
+$app = new App(new Config($_ENV));
+$app->run();
