@@ -65,4 +65,37 @@ abstract class Model
 
         return self::$db->execute();
     }
+
+    /*----------------------------------------------------------------------------------------------*/
+
+    protected static function insert(array $records): bool
+    {
+        if (empty($records)) {
+            return false;
+        }
+
+        $columns = implode(', ', array_keys($records[0]));
+
+        $rowPlaceholders = [];
+        $bindValues = [];
+
+        foreach ($records as $record) {
+            $placeholders = '(' . implode(', ', array_fill(0, count($record), '?')) . ')';
+            $rowPlaceholders[] = $placeholders;
+
+            foreach ($record as $value) {
+                $bindValues[] = $value;
+            }
+        }
+
+        $sql = sprintf(
+            "INSERT INTO %s (%s) VALUES %s",
+            self::$table,
+            $columns,
+            implode(', ', $rowPlaceholders)
+        );
+
+        $stmt = self::$db->prepare($sql);
+        return $stmt->execute($bindValues);
+    }
 }
