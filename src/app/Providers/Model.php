@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use PDO;
+
 abstract class Model
 {
     protected DB $db;
     protected string $table;
     protected string $primaryKey = 'id';
+    protected array $fillable = [];
 
     public function __construct()
     {
@@ -15,71 +18,100 @@ abstract class Model
 
     /*----------------------------------------------------------------------------------------------*/
 
-    public static function find(int $id): ?array
+    public function __call($name, $arguments)
     {
-        self::$db->prepare(sprintf("SELECT * FROM %s WHERE %s = :id", self::$table, self::$primaryKey));
-        self::$db->bind(':id', $id);
-        $result = self::$db->fetch();
+        $name .= 'Internal';
+        if (!method_exists($this, $name)) {
+            throw new \BadMethodCallException("Method $name does not exist on " . static::class);
+        }
+
+        return $this->$name(...$arguments);
+    }
+
+    /*----------------------------------------------------------------------------------------------*/
+
+    public static function __callStatic($name, $arguments)
+    {
+        $instance = new static();
+        $name .= 'Internal';
+        if (!method_exists($instance, $name)) {
+            throw new \BadMethodCallException("Method $name does not exist on " . static::class);
+        }
+
+        return $instance->$name(...$arguments);
+    }
+
+    /*----------------------------------------------------------------------------------------------*/
+
+    protected function findInternal(int $id): ?array
+    {
+        $this->db->prepare(sprintf("SELECT * FROM %s WHERE %s = :id", $this->table, $this->primaryKey));
+        $this->db->bindValue(':id', $id, PDO::PARAM_INT);
+        $result = $this->db->fetch()[0] ?? null;
 
         return $result ?: null;
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    public static function all(): array
+    protected function allInternal(): array
     {
-        self::$db->prepare(sprintf("SELECT * FROM %s", self::$table));
-        return self::$db->fetchAll();
+        $stmt = $this->db->prepare(sprintf("SELECT * FROM %s", $this->table));
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    protected static function create(array $data): bool
+    protected function createInternal(array $data): bool
     {
+        $data = array_intersect_key($data, array_flip($this->fillable));
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_map(fn($key) => "$key = :$key", array_keys($data)));
 
-        self::$db->prepare(sprintf("INSERT INTO %s (%s) VALUES (%s)", self::$table, $columns, $placeholders));
+        $this->db->prepare(sprintf("INSERT INTO %s (%s) VALUES (%s)", $this->table, $columns, $placeholders));
 
-        return self::$db->execute($data);
+        return $this->db->execute($data);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    protected static function update(int $id, array $data): bool
+    protected function updateInternal(int $id, array $data): bool
     {
+        $data = array_intersect_key($data, array_flip($this->fillable));
         $setClause = implode(', ', array_map(fn($key) => "$key = :$key", array_keys($data)));
 
-        self::$db->prepare(sprintf("UPDATE %s SET %s WHERE %s = :id", self::$table, $setClause, self::$primaryKey));
+        $this->db->prepare(sprintf("UPDATE %s SET %s WHERE %s = :id", $this->table, $setClause, $this->primaryKey));
         $data['id'] = $id;
 
-        return self::$db->execute($data);
+        return $this->db->execute($data);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    protected static function delete(int $id): bool
+    protected function deleteInternal(int $id): bool
     {
-        self::$db->prepare(sprintf("DELETE FROM %s WHERE %s = :id", self::$table, self::$primaryKey));
-        self::$db->bind(':id', $id);
+        $this->db->prepare(sprintf("DELETE FROM %s WHERE %s = :id", $this->table, $this->primaryKey));
+        $this->db->bind(':id', $id);
 
-        return self::$db->execute();
+        return $this->db->execute();
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    protected static function insert(array $records): bool
+    protected function insertInternal(array $records): bool
     {
         if (empty($records)) {
             return false;
         }
 
-        $columns = implode(', ', array_keys($records[0]));
+        $columns = "`" . implode('`, `', array_keys(array_intersect_key($records[0], array_flip($this->fillable)))) . "`";
 
         $rowPlaceholders = [];
         $bindValues = [];
 
         foreach ($records as $record) {
+            $record = array_intersect_key($record, array_flip($this->fillable));
             $placeholders = '(' . implode(', ', array_fill(0, count($record), '?')) . ')';
             $rowPlaceholders[] = $placeholders;
 
@@ -90,12 +122,12 @@ abstract class Model
 
         $sql = sprintf(
             "INSERT INTO %s (%s) VALUES %s",
-            self::$table,
+            $this->table,
             $columns,
             implode(', ', $rowPlaceholders)
         );
 
-        $stmt = self::$db->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         return $stmt->execute($bindValues);
     }
 }

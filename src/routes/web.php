@@ -1,6 +1,7 @@
 <?php
 
-use App\Http\Controllers\HomeController;
+use App\Http\Controllers\TransactionController;
 use App\Providers\Route;
 
-Route::get('/', [HomeController::class, 'index']);
+Route::get('/', [TransactionController::class, 'index']);
+Route::post('/', [TransactionController::class, 'upload']);

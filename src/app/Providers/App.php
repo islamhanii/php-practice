@@ -14,7 +14,7 @@ class App
     }
 
     /*----------------------------------------------------------------------------------------------*/
-    
+
     public static function db(): DB
     {
         return static::$db;
@@ -30,7 +30,7 @@ class App
             http_response_code($e->getCode());
             View::render('errors/404', ['message' => $e->getMessage()]);
         } catch (\Throwable $e) {
-            http_response_code($e->getCode() ?: 500);
+            http_response_code((int)$e->getCode() ?: 500);
             echo $e->getMessage();
         }
     }
