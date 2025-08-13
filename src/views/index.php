@@ -23,6 +23,8 @@
             </div>
         </div>
 
+        <?php include 'layouts/session.php'; ?>
+
         <!-- Transactions Table -->
         <div class="card shadow-sm">
             <div class="card-body">

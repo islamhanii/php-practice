@@ -30,7 +30,6 @@ class TransactionController
             exit;
         }
 
-        // looping through the uploaded CSV file to extract transaction data
         $file = $_FILES['file']['tmp_name'];
 
         $transactions = [];
@@ -54,6 +53,7 @@ class TransactionController
             exit;
         }
 
+        $_SESSION['success'] = 'Transactions successfully uploaded.';
         header('Location: /');
         exit;
     }
