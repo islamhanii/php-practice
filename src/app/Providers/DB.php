@@ -5,12 +5,10 @@ namespace App\Providers;
 use BadMethodCallException;
 use PDO;
 use PDOException;
-use PDOStatement;
 
 class DB
 {
     private PDO $connection;
-    private ?PDOStatement $statement = null;
 
     public function __construct(array $config)
     {
@@ -41,34 +39,8 @@ class DB
 
     /*----------------------------------------------------------------------------------------------*/
 
-    public function prepare(string $sql): self
-    {
-        $this->statement = $this->connection->prepare($sql);
-        return $this;
-    }
-
-    /*----------------------------------------------------------------------------------------------*/
-
-    public function execute(array $params = []): bool
-    {
-        return $this->statement?->execute($params) ?? false;
-    }
-
-    /*----------------------------------------------------------------------------------------------*/
-
-    public function fetch(): array
-    {
-        return $this->statement?->fetchAll() ?? [];
-    }
-
-    /*----------------------------------------------------------------------------------------------*/
-
     public function __call($name, $arguments)
     {
-        if ($this->statement && method_exists($this->statement, $name)) {
-            return call_user_func_array([$this->statement, $name], $arguments);
-        }
-
         if (method_exists($this->connection, $name)) {
             return call_user_func_array([$this->connection, $name], $arguments);
         }
