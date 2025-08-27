@@ -8,49 +8,87 @@ class Route
 {
     protected static array $routes = [];
 
-    public static function get(string $path, callable|array $action): void
+    public function __call($name, $arguments)
     {
-        self::addRoutes("GET", $path, $action);
+        $name .= 'Internal';
+        if (!method_exists($this, $name)) {
+            throw new \BadMethodCallException("Method $name does not exist on " . static::class);
+        }
+
+        return $this->$name(...$arguments);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    public static function post(string $path, callable|array $action): void
+    public static function __callStatic($name, $arguments)
     {
-        self::addRoutes("POST", $path, $action);
+        $instance = new static();
+        $name .= 'Internal';
+        if (!method_exists($instance, $name)) {
+            throw new \BadMethodCallException("Method $name does not exist on " . static::class);
+        }
+
+        return $instance->$name(...$arguments);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    protected static function addRoutes(string $method, string $path, callable|array $action): void
+    protected function getInternal(string $path, callable|array $action): void
     {
-        self::$routes[$method][$path] = $action;
+        $this->addRoute("GET", $path, $action);
     }
 
     /*----------------------------------------------------------------------------------------------*/
 
-    public static function dispatch(): void
+    protected function postInternal(string $path, callable|array $action): void
+    {
+        $this->addRoute("POST", $path, $action);
+    }
+
+    /*----------------------------------------------------------------------------------------------*/
+
+    protected function addRoute(string $method, string $path, callable|array $action): void
+    {
+        $pattern = preg_replace('#\{([^}]+)\}#', '(?P<$1>[^/]+)', $path);
+        $pattern = "#^" . rtrim($pattern, '/') . "$#";
+
+        self::$routes[$method][] = [
+            'path' => $path,
+            'pattern' => $pattern,
+            'action' => $action
+        ];
+    }
+
+    /*----------------------------------------------------------------------------------------------*/
+
+    protected function dispatchInternal(): void
     {
         $method = $_SERVER['REQUEST_METHOD'];
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-        $action = self::$routes[$method][$uri] ?? null;
+        $routes = self::$routes[$method] ?? [];
 
-        if (!$action) {
-            throw new RouteNotFoundException();
-        }
+        foreach ($routes as $route) {
+            if (preg_match($route['pattern'], $uri, $matches)) {
+                $params = array_filter($matches, fn($k) => !is_int($k), ARRAY_FILTER_USE_KEY);
 
-        if (is_array($action)) {
-            [$controller, $method] = $action;
-            if (class_exists($controller) && method_exists($controller, $method)) {
-                (new $controller)->$method();
-                return;
+                $action = $route['action'];
+
+                if (is_array($action)) {
+                    [$controller, $method] = $action;
+                    if (class_exists($controller) && method_exists($controller, $method)) {
+                        (new $controller)->$method(...$params);
+                        return;
+                    }
+                } elseif (is_callable($action)) {
+                    call_user_func_array($action, $params);
+                    return;
+                }
+
+                throw new RouteNotFoundException("Controller or method not found");
             }
-        } else if (is_callable($action)) {
-            call_user_func($action);
-            return;
         }
 
-        throw new RouteNotFoundException();
+        throw new RouteNotFoundException("Route [$uri] not found");
     }
 }

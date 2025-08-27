@@ -6,10 +6,8 @@ use App\Providers\View;
 
 class HomeController
 {
-    public function index()
+    public function index($name)
     {
-        $name = "Islam";
-
         View::render('index', compact('name'));
     }
 }
